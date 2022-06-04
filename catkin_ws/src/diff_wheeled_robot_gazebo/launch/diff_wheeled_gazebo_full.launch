@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- these are the arguments you can pass this launch file, for example paused:=true -->
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+
+  <!-- We resume the logic in empty_world.launch -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    <arg name="headless" value="$(arg headless)"/>
+  </include>
+
+  <!-- urdf xml robot description loaded on the Parameter Server-->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find mastering_ros_robot_description_pkg)/urdf/diff_wheeled_robot_with_laser.xacro'" /> 
+
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" ></node> 
+  <!-- start robot state publisher -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen" >
+    <param name="publish_frequency" type="double" value="50.0" />
+  </node>
+
+
+  <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+  <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+	args="-urdf -model diff_wheeled_robot -param robot_description"/> 
+
+  <arg name="scan_topic" default="scan" /> 
+ 
+  <!-- Defining parameters for slam_gmapping node --> 
+ 
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen"> 
+    <param name="base_frame" value="base_footprint"/> 
+    <param name="odom_frame" value="odom"/> 
+    <param name="map_update_interval" value="5.0"/> 
+    <param name="maxUrange" value="6.0"/> 
+    <param name="maxRange" value="8.0"/> 
+    <param name="sigma" value="0.05"/> 
+    <param name="kernelSize" value="1"/> 
+    <param name="lstep" value="0.05"/> 
+    <param name="astep" value="0.05"/> 
+    <param name="iterations" value="5"/> 
+    <param name="lsigma" value="0.075"/> 
+    <param name="ogain" value="3.0"/> 
+    <param name="lskip" value="0"/> 
+    <param name="minimumScore" value="100"/> 
+    <param name="srr" value="0.01"/> 
+    <param name="srt" value="0.02"/> 
+    <param name="str" value="0.01"/> 
+    <param name="stt" value="0.02"/> 
+    <param name="linearUpdate" value="0.5"/> 
+    <param name="angularUpdate" value="0.436"/> 
+    <param name="temporalUpdate" value="-1.0"/> 
+    <param name="resampleThreshold" value="0.5"/> 
+    <param name="particles" value="80"/> 
+  
+    <param name="xmin" value="-1.0"/> 
+    <param name="ymin" value="-1.0"/> 
+    <param name="xmax" value="1.0"/> 
+    <param name="ymax" value="1.0"/> 
+ 
+    <param name="delta" value="0.05"/> 
+    <param name="llsamplerange" value="0.01"/> 
+    <param name="llsamplestep" value="0.01"/> 
+    <param name="lasamplerange" value="0.005"/> 
+    <param name="lasamplestep" value="0.005"/> 
+    <remap from="scan" to="$(arg scan_topic)"/> 
+  </node> 
+
+  <arg name="map_file" default="$(find diff_wheeled_robot_gazebo)/maps/test.yaml"/>
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+
+  <arg name="initial_pose_x" default="0.0"/> <!-- Use 17.0 for willow's map in simulation -->
+  <arg name="initial_pose_y" default="0.0"/> <!-- Use 17.0 for willow's map in simulation -->
+  <arg name="initial_pose_a" default="0.0"/>
+
+  <include file="$(find diff_wheeled_robot_gazebo)/launch/includes/amcl.launch.xml">
+
+    <arg name="initial_pose_x" value="0"/>
+    <arg name="initial_pose_y" value="0"/>
+    <arg name="initial_pose_a" value="0"/>
+
+<!--
+    <arg name="initial_pose_x" value="$(arg initial_pose_x)"/>
+    <arg name="initial_pose_y" value="$(arg initial_pose_y)"/>
+    <arg name="initial_pose_a" value="$(arg initial_pose_a)"/>
+-->
+  </include>
+
+  <include file="$(find diff_wheeled_robot_gazebo)/launch/includes/move_base.launch.xml"/>
+
+</launch>
